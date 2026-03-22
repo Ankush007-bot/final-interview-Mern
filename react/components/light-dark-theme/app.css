@@ -1,0 +1,27 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial;
+}
+
+.light {
+  background: #ffffff;
+  color: #000;
+  height: 100vh;
+  text-align: center;
+  padding-top: 50px;
+}
+
+.dark {
+  background: #1a1a1a;
+  color: #fff;
+  height: 100vh;
+  text-align: center;
+  padding-top: 50px;
+}
+
+button {
+  padding: 10px 20px;
+  margin-top: 20px;
+  cursor: pointer;
+}

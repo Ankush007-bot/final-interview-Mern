@@ -1,0 +1,88 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "mern-backend"
+        BUILD_TAG = "${IMAGE_NAME}:${BUILD_NUMBER}"
+        REGISTRY = "your-docker-registry.com"   // optional
+        SERVER = "ubuntu@YOUR_SERVER_IP"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm ci'
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                sh 'npx eslint .'
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh 'npm test'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${BUILD_TAG} ."
+            }
+        }
+
+        stage('Push To Registry (Optional)') {
+            when { expression { return env.REGISTRY != "" } }
+            steps {
+                sh "docker tag ${BUILD_TAG} ${REGISTRY}/${BUILD_TAG}"
+                sh "docker push ${REGISTRY}/${BUILD_TAG}"
+            }
+        }
+
+        /* ------------ CD (Deployment) ------------- */
+       stage('Deploy To Production') {
+    steps {
+        sshagent(['production-server-ssh']) {          // Jenkins stored SSH key use karega
+            sh """
+            ssh ${SERVER} '                            # Production server par SSH login
+                docker pull ${REGISTRY}/${BUILD_TAG} || true      # Latest Docker image pull karo (fail hua toh ignore)
+                docker stop mern-container || true                # Purana container agar chal raha ho toh stop karo
+                docker rm mern-container || true                  # Purane container ko remove karo
+                docker run -d --name mern-container \             # New container run karo background (-d)
+                    -p 5000:5000 \                                # Server port → container port expose
+                    ${REGISTRY}/${BUILD_TAG}                      # Jo latest build image hai usse container start karo
+            '
+            """
+        }
+    }
+}
+
+        stage('Health Check') {
+            steps {
+                sh """
+                sleep 10
+                curl -f http://YOUR_SERVER_IP:5000/health || exit 1
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "🚀 Deployment Successful for build: #${BUILD_NUMBER}"
+            slackSend channel: '#devops', message: "Success: Build #${BUILD_NUMBER} deployed 🚀"
+        }
+        failure {
+            echo "❌ Deployment Failed"
+            slackSend channel: '#devops', message: "Failed: Build #${BUILD_NUMBER} ❌"
+        }
+    }
+}

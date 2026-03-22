@@ -1,0 +1,61 @@
+<input id="username" placeholder="Enter username" />
+<button onclick="setUsername()">Set Username</button>
+<br/>
+<input id="room" placeholder="Enter room to join" />
+<button onclick="joinRoom()">Join Room</button>
+<hr/>
+
+<select id="toUser"></select>
+<input id="msg" placeholder="Type message" />
+<button onclick="sendPrivateMessage()">Send Private</button>
+<button onclick="sendRoomMessage()">Send Room</button>
+
+<ul id="messages"></ul>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let myUsername = '';
+
+  function setUsername() {
+    myUsername = document.getElementById('username').value;
+    socket.emit('set_username', myUsername);
+  }
+
+  function joinRoom() {
+    const room = document.getElementById('room').value;
+    socket.emit('join_room', room);
+  }
+
+  socket.on('users_list', (usernames) => {
+    const select = document.getElementById('toUser');
+    select.innerHTML = '';
+    usernames.forEach(u => {
+      if (u !== myUsername) {
+        const option = document.createElement('option');
+        option.value = u;
+        option.text = u;
+        select.appendChild(option);
+      }
+    });
+  });
+
+  function sendPrivateMessage() {
+    const toUsername = document.getElementById('toUser').value;
+    const message = document.getElementById('msg').value;
+    socket.emit('private_message', { toUsername, message });
+    document.getElementById('msg').value = '';
+  }
+
+  function sendRoomMessage() {
+    const message = document.getElementById('msg').value;
+    socket.emit('room_message', { message });
+    document.getElementById('msg').value = '';
+  }
+
+  socket.on('receive_message', ({ from, message, type }) => {
+    const li = document.createElement('li');
+    li.innerText = type === 'private' ? `[Private] ${from}: ${message}` : `[Room] ${from}: ${message}`;
+    document.getElementById('messages').appendChild(li);
+  });
+</script>

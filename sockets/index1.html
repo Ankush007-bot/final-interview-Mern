@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <input id="username" placeholder="Username" />
+    <input id="room" placeholder="Room name" />
+    <button onclick="joinChat()">Join</button>
+    <hr />
+    <input id="to" placeholder="Send to Socket ID (for private)" />
+    <input id="msg" placeholder="Message" />
+    <button onclick="sendMessage()">Send</button>
+    <ul id="messages"></ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      let currentRoom;
+
+      function joinChat() {
+        const username = document.getElementById('username').value;
+        const room = document.getElementById('room').value;
+        currentRoom = room;
+        socket.emit('join', username, room);
+      }
+
+      function sendMessage() {
+        const msg = document.getElementById('msg').value;
+        const to = document.getElementById('to').value;
+
+        if (to) {
+          // private
+          console.log('Sending private message to:', to);
+          socket.emit('private_message', { toSocketId: to, message: msg });
+        } else {
+          // room broadcast
+          socket.emit('room_message', { room: currentRoom, message: msg });
+        }
+        document.getElementById('msg').value = '';
+      }
+
+      socket.on('receive_message', ({ from, message }) => {
+        const li = document.createElement('li');
+        li.innerText = `${from}: ${message}`;
+        document.getElementById('messages').appendChild(li);
+      });
+    </script>
+  </body>
+</html>
